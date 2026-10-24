@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Temporary sessions & uploads
+temp_sessions/
+*.tmp
+*.log
+
+# Scraper & Analysis scratch files
+all_long_strings.txt
+chatgpt_share.html
+conversation_blocks.txt
+data_dump.json
+stream_data.json
+script_sample.txt
+script_0.js
+script_3.js
+script_8.js
+check_script8.py
+extract_blocks.py
+extract_conversation.py
+inspect_share.py
+inspect_strings.py
+parse_remix.py
+parse_script3.py
+read_json.py
+summary_blocks.py
+
+# IDE / Editor
+.vscode/
+.idea/
+.qodo/
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.local

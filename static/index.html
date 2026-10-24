@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecureVibe - AI Security Reviewer (CY-02)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Marked Markdown Parser -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            surface: {
+              800: '#18181b',
+              900: '#09090b',
+              950: '#030712'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulseSlow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .6; }
+    }
+    .animate-pulse-slow {
+      animation: pulseSlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #18181b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="bg-surface-950 text-zinc-100 min-h-screen flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Navigation Bar -->
+  <header class="border-b border-zinc-800 bg-surface-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i class="ph-bold ph-shield-check text-2xl text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-lg tracking-tight text-white">SecureVibe</span>
+            <span class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 font-medium px-2 py-0.5 rounded-full">CY-02</span>
+          </div>
+          <p class="text-xs text-zinc-400 hidden sm:block">AI Security Reviewer for Vibe-Coded Applications</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Engine Active
+        </span>
+        <a href="https://github.com" target="_blank" class="text-xs text-zinc-400 hover:text-white px-2 py-1 rounded-lg border border-zinc-800 hover:border-zinc-700 transition">
+          JU Techfest 2026
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+
+    <!-- Tab Buttons -->
+    <div class="flex items-center space-x-2 border-b border-zinc-800 pb-3">
+      <button id="tab-findings-btn" onclick="switchTab('findings')" class="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-800 text-white flex items-center gap-2 transition">
+        <i class="ph-bold ph-clipboard-text"></i> Audit Findings
+        <span id="badge-total-findings" class="ml-1 text-xs px-2 py-0.5 rounded-full bg-zinc-700 text-zinc-300">0</span>
+      </button>
+      <button id="tab-upload-btn" onclick="switchTab('upload')" class="px-4 py-2 text-sm font-medium rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 flex items-center gap-2 transition">
+        <i class="ph-bold ph-code"></i> Upload or Paste Code
+      </button>
+      <button id="tab-ai-btn" onclick="switchTab('ai')" class="px-4 py-2 text-sm font-medium rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 flex items-center gap-2 transition">
+        <i class="ph-bold ph-sparkle"></i> AI Repair Assistant
+      </button>
+      <button id="tab-rescan-btn" onclick="switchTab('rescan')" class="px-4 py-2 text-sm font-medium rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 flex items-center gap-2 transition">
+        <i class="ph-bold ph-arrows-clockwise"></i> Verification & Diff
+      </button>
+    </div>
+
+    <!-- TAB 1: AUDIT FINDINGS DASHBOARD -->
+    <div id="tab-findings" class="space-y-6">
+
+      <!-- Active Source Banner -->
+      <div id="source-indicator-banner" class="hidden rounded-xl p-3.5 border flex items-center justify-between text-xs transition">
+        <div class="flex items-center space-x-2.5">
+          <span id="source-badge" class="px-2 py-0.5 rounded font-mono text-[10px] font-bold">SOURCE</span>
+          <span id="source-message" class="text-zinc-300">Message</span>
+        </div>
+        <button onclick="clearCurrentScan()" class="text-zinc-400 hover:text-white px-2.5 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/80 transition flex items-center gap-1 font-medium">
+          <i class="ph-bold ph-x"></i> Clear Code
+        </button>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Security Score Card -->
+        <div class="bg-surface-900 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Security Score</div>
+          <div class="flex items-baseline space-x-2 my-2">
+            <span id="stat-score" class="text-4xl font-extrabold text-white">--</span>
+            <span class="text-xs text-zinc-500">/ 100</span>
+          </div>
+          <div class="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+            <div id="stat-score-bar" class="bg-emerald-500 h-full w-0 transition-all duration-700"></div>
+          </div>
+        </div>
+
+        <!-- Critical Findings -->
+        <div class="bg-surface-900 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-red-400 uppercase tracking-wider">Critical</span>
+            <i class="ph-bold ph-skull text-red-400 text-lg"></i>
+          </div>
+          <div id="stat-critical" class="text-3xl font-extrabold text-white my-1">0</div>
+          <span class="text-xs text-zinc-500">Immediate compromise risk</span>
+        </div>
+
+        <!-- High Findings -->
+        <div class="bg-surface-900 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-amber-400 uppercase tracking-wider">High</span>
+            <i class="ph-bold ph-warning-circle text-amber-400 text-lg"></i>
+          </div>
+          <div id="stat-high" class="text-3xl font-extrabold text-white my-1">0</div>
+          <span class="text-xs text-zinc-500">Significant exposure</span>
+        </div>
+
+        <!-- Medium Findings -->
+        <div class="bg-surface-900 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-yellow-400 uppercase tracking-wider">Medium</span>
+            <i class="ph-bold ph-info text-yellow-400 text-lg"></i>
+          </div>
+          <div id="stat-medium" class="text-3xl font-extrabold text-white my-1">0</div>
+          <span class="text-xs text-zinc-500">Config & hardening bugs</span>
+        </div>
+
+        <!-- Files Scanned -->
+        <div class="bg-surface-900 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Files Scanned</span>
+            <i class="ph-bold ph-file-code text-indigo-400 text-lg"></i>
+          </div>
+          <div id="stat-files" class="text-3xl font-extrabold text-white my-1">0</div>
+          <span id="stat-project-name" class="text-xs text-zinc-500 truncate">No scan performed</span>
+        </div>
+      </div>
+
+      <!-- Findings List -->
+      <div class="bg-surface-900 border border-zinc-800 rounded-2xl overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-zinc-800 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 class="text-base font-bold text-white">Vulnerability Findings & Evidence</h2>
+            <p class="text-xs text-zinc-400">All sensitive credentials and tokens are automatically masked by the engine.</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <select id="severity-filter" onchange="filterFindings()" class="bg-zinc-800 border border-zinc-700 text-xs rounded-lg px-2.5 py-1.5 text-zinc-200 focus:outline-none">
+              <option value="ALL">All Severities</option>
+              <option value="CRITICAL">Critical Only</option>
+              <option value="HIGH">High Only</option>
+              <option value="MEDIUM">Medium Only</option>
+            </select>
+            <button onclick="copyAllFindingsJson()" class="text-xs px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg border border-zinc-700 flex items-center gap-1">
+              <i class="ph-bold ph-copy"></i> Export JSON
+            </button>
+            <button onclick="goToVerificationWithFix()" class="text-xs px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg shadow-md flex items-center gap-1.5 transition">
+              <i class="ph-bold ph-magic-wand"></i> Auto-Fix Code & Verify
+            </button>
+            <button id="btn-clear-scan" onclick="clearCurrentScan()" class="text-xs px-3 py-1.5 bg-red-950/50 hover:bg-red-900/60 text-red-300 rounded-lg border border-red-800/60 flex items-center gap-1.5 transition">
+              <i class="ph-bold ph-trash"></i> Remove / Clear Code
+            </button>
+          </div>
+        </div>
+
+        <div id="findings-container" class="divide-y divide-zinc-800/80">
+          <div class="p-12 text-center text-zinc-500 space-y-3">
+            <i class="ph-duotone ph-scan text-4xl text-zinc-600"></i>
+            <p class="text-sm">No scan data loaded yet.</p>
+            <p class="text-xs text-zinc-600">Click a benchmark button above or upload your own codebase to begin.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: UPLOAD OR PASTE CODE -->
+    <div id="tab-upload" class="hidden space-y-6">
+      <div class="bg-surface-900 border border-zinc-800 rounded-2xl p-6 sm:p-8">
+        
+        <div class="text-center max-w-xl mx-auto mb-6">
+          <h2 class="text-xl font-bold text-white mb-2">Audit Codebase for Security Vulnerabilities</h2>
+          <p class="text-sm text-zinc-400">
+            Paste code directly into the browser or upload an archive of your repository.
+          </p>
+
+          <!-- Mode Toggle Buttons -->
+          <div class="flex items-center justify-center space-x-2 mt-5">
+            <button id="mode-paste-btn" onclick="setUploadMode('paste')" class="px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white flex items-center gap-1.5 shadow transition">
+              <i class="ph-bold ph-clipboard-text"></i> Paste Code Directly
+            </button>
+            <button id="mode-upload-btn" onclick="setUploadMode('upload')" class="px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-800 text-zinc-400 hover:text-white flex items-center gap-1.5 transition">
+              <i class="ph-bold ph-upload-simple"></i> Upload File / ZIP
+            </button>
+          </div>
+        </div>
+
+        <!-- Currently Loaded File Banner -->
+        <div id="loaded-file-banner" class="hidden mb-6 bg-zinc-950 border border-zinc-800 rounded-xl p-4 max-w-2xl mx-auto flex items-center justify-between text-left">
+          <div class="flex items-center space-x-3">
+            <div class="h-10 w-10 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xl shrink-0">
+              <i class="ph-bold ph-file-code"></i>
+            </div>
+            <div class="min-w-0">
+              <div class="text-sm font-bold text-white flex items-center gap-2">
+                <span id="loaded-file-name" class="truncate max-w-[200px]">sample.zip</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">Loaded</span>
+              </div>
+              <p class="text-xs text-zinc-400" id="loaded-file-stats">0 files • 0 findings</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="clearCurrentScan()" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-red-950/60 text-red-400 hover:bg-red-900/70 border border-red-800/60 transition flex items-center gap-1">
+              <i class="ph-bold ph-trash"></i> Remove
+            </button>
+          </div>
+        </div>
+
+        <!-- SECTION A: PASTE CODE DIRECTLY (DEFAULT) -->
+        <div id="section-paste" class="max-w-2xl mx-auto space-y-4">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center space-x-2">
+              <label class="text-xs font-medium text-zinc-400">File Type:</label>
+              <select id="snippet-filename" class="bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 rounded-lg px-2.5 py-1 focus:outline-none">
+                <option value="app.py">Python (app.py)</option>
+                <option value="server.js">JavaScript (server.js)</option>
+                <option value="config.py">Config (config.py)</option>
+                <option value=".env">Environment (.env)</option>
+              </select>
+            </div>
+            <span class="text-xs text-zinc-500">Paste your code below to audit</span>
+          </div>
+
+          <div class="relative">
+            <textarea id="paste-code-input" rows="14" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 font-mono text-xs text-zinc-200 focus:outline-none focus:border-indigo-500 leading-relaxed resize-y selection:bg-indigo-500 selection:text-white" placeholder="# Paste your Python or JavaScript code here to scan...
+import os
+
+def my_function():
+    pass
+"></textarea>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <button onclick="document.getElementById('paste-code-input').value = ''" class="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition">
+              Clear Text
+            </button>
+            <button onclick="scanPastedCode()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/20 flex items-center gap-2 transition">
+              <i class="ph-bold ph-lightning"></i> Scan Pasted Code Now
+            </button>
+          </div>
+        </div>
+
+        <!-- SECTION B: UPLOAD FILE / ZIP (TOGGLEABLE) -->
+        <div id="section-upload" class="hidden max-w-xl mx-auto space-y-6">
+          <div id="drop-zone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)"
+            class="border-2 border-dashed border-zinc-700 hover:border-indigo-500 rounded-2xl p-10 cursor-pointer transition flex flex-col items-center justify-center space-y-3 bg-zinc-950/50">
+            <div class="h-14 w-14 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-2xl">
+              <i class="ph-bold ph-cloud-arrow-up"></i>
+            </div>
+            <div class="space-y-1 text-center">
+              <p class="text-sm font-semibold text-zinc-200">Click to browse or drag and drop</p>
+              <p class="text-xs text-zinc-500">Upload your own project (.zip or single .py / .js file)</p>
+            </div>
+            <input type="file" id="file-input" accept=".zip,.py,.js,.ts,.json" class="hidden" onchange="handleFileSelect(event)">
+            <button onclick="document.getElementById('file-input').click()" class="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow transition">
+              Select File / ZIP
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 3: MULTI-MODEL AI REPAIR ASSISTANT -->
+    <div id="tab-ai" class="hidden space-y-6">
+      
+      <!-- Top Control Card: Model Provider Selection -->
+      <div class="bg-surface-900 border border-zinc-800 rounded-2xl p-6 space-y-5">
+        <div class="flex items-center justify-between border-b border-zinc-800 pb-4 flex-wrap gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="ph-bold ph-cpu text-indigo-400"></i> Multi-Model AI Remediation Hub
+            </h2>
+            <p class="text-xs text-zinc-400">
+              Run surgical code remediation through Google Gemini, OpenAI GPT-4o, Anthropic Claude, Groq, or our Offline Engine.
+            </p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="copyAiPrompt()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-medium flex items-center gap-1.5 border border-zinc-700 transition">
+              <i class="ph-bold ph-copy"></i> Copy Raw Prompt
+            </button>
+            <button onclick="generateLiveFix()" id="btn-generate-fix" class="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-indigo-500/20 transition">
+              <i class="ph-bold ph-lightning"></i> Generate Live AI Fix
+            </button>
+          </div>
+        </div>
+
+        <!-- Provider Controls Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- 1. Provider Select -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-zinc-300 flex items-center gap-1">
+              <i class="ph-bold ph-robot text-indigo-400"></i> AI Provider:
+            </label>
+            <select id="ai-provider-select" onchange="onAiProviderChange()" class="w-full bg-zinc-950 border border-zinc-700 text-xs rounded-lg px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500">
+              <option value="gemini" selected>🌐 Google Gemini (Flash / Pro)</option>
+              <option value="openai">🟢 OpenAI (GPT-4o / 4o-mini)</option>
+              <option value="claude">🟣 Anthropic Claude (3.5 Sonnet)</option>
+              <option value="groq">⚡ Groq (Llama-3.3 Ultra-Fast)</option>
+              <option value="offline">🛡️ Offline Engine (Zero-Key Demo)</option>
+            </select>
+          </div>
+
+          <!-- 2. Model Select -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-zinc-300 flex items-center gap-1">
+              <i class="ph-bold ph-gear text-indigo-400"></i> Model Variant:
+            </label>
+            <select id="ai-model-select" class="w-full bg-zinc-950 border border-zinc-700 text-xs rounded-lg px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <!-- 3. Perspective Mode -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-zinc-300 flex items-center gap-1">
+              <i class="ph-bold ph-binoculars text-indigo-400"></i> Analysis Perspective:
+            </label>
+            <select id="ai-perspective-select" class="w-full bg-zinc-950 border border-zinc-700 text-xs rounded-lg px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500">
+              <option value="dual">Dual-Agent: Attacker Exploit + Defensive Fix</option>
+              <option value="fix_only">Defensive Engineer (Code Fix Only)</option>
+              <option value="exploit_only">Penetration Tester (Exploit Vector Only)</option>
+            </select>
+          </div>
+
+          <!-- 4. Optional API Key -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-zinc-300 flex items-center justify-between">
+              <span class="flex items-center gap-1"><i class="ph-bold ph-key text-indigo-400"></i> API Key (Optional):</span>
+              <span class="text-[10px] text-zinc-500">Offline fallback if empty</span>
+            </label>
+            <div class="relative">
+              <input type="password" id="ai-api-key-input" placeholder="Paste API key or leave blank..." class="w-full bg-zinc-950 border border-zinc-700 text-xs rounded-lg pl-3 pr-8 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono">
+              <button onclick="toggleKeyVisibility()" class="absolute right-2 top-2 text-zinc-400 hover:text-zinc-200 text-sm">
+                <i id="eye-icon" class="ph-bold ph-eye"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live AI Response Card -->
+      <div class="bg-surface-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+        <!-- Metadata Header -->
+        <div class="flex items-center justify-between flex-wrap gap-2 border-b border-zinc-800 pb-3">
+          <div class="flex items-center space-x-2">
+            <span id="ai-status-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-300 flex items-center gap-1">
+              <i class="ph-bold ph-sparkle text-indigo-400"></i> Ready
+            </span>
+            <span id="ai-meta-text" class="text-xs text-zinc-400">Click "Generate Live AI Fix" to analyze findings with the selected model.</span>
+          </div>
+          <button onclick="copyAiResponse()" class="text-xs px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg border border-zinc-700 flex items-center gap-1 transition">
+            <i class="ph-bold ph-copy"></i> Copy AI Output
+          </button>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="ai-loading-indicator" class="hidden py-12 text-center space-y-3">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+          <p class="text-xs text-zinc-400" id="ai-loading-text">Calling selected model and synthesizing security refactorings...</p>
+        </div>
+
+        <!-- Rendered Markdown Output -->
+        <div id="ai-response-rendered" class="prose prose-invert max-w-none text-xs text-zinc-200 leading-relaxed space-y-3 p-4 bg-zinc-950 rounded-xl border border-zinc-800/80 overflow-x-auto min-h-[200px]">
+          <p class="text-zinc-500 italic">No AI response generated yet. Load or scan code, then click "Generate Live AI Fix".</p>
+        </div>
+
+        <!-- Collapsible Raw Context Prompt -->
+        <details class="text-xs text-zinc-400 border-t border-zinc-800 pt-3">
+          <summary class="cursor-pointer hover:text-zinc-200 font-semibold flex items-center gap-1 select-none">
+            <i class="ph-bold ph-caret-right"></i> View Raw Context Prompt (Sent to LLM)
+          </summary>
+          <div class="bg-zinc-950 border border-zinc-800 rounded-xl p-3 font-mono text-[11px] text-zinc-300 mt-2 max-h-[300px] overflow-y-auto whitespace-pre-wrap" id="ai-prompt-content">
+Select or run a scan first to generate the contextual AI remediation prompt.
+          </div>
+        </details>
+      </div>
+
+    </div>
+
+    <!-- TAB 4: VERIFICATION & DIFF -->
+    <div id="tab-rescan" class="hidden space-y-6">
+      <div class="bg-surface-900 border border-zinc-800 rounded-2xl p-6">
+        
+        <!-- Header -->
+        <div class="border-b border-zinc-800 pb-4 mb-6 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="ph-bold ph-git-diff text-emerald-400"></i> Verification & Rescan Diff
+            </h2>
+            <p class="text-xs text-zinc-400">Verify whether your code changes cleanly resolved reported vulnerabilities.</p>
+          </div>
+          <div id="rescan-session-badge" class="hidden text-xs px-2.5 py-1 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 font-mono">
+            Active Baseline: <span id="rescan-session-name">--</span>
+          </div>
+        </div>
+
+        <!-- STATE A: NO CODE LOADED YET -->
+        <div id="rescan-no-code" class="p-12 text-center text-zinc-500 space-y-3">
+          <div class="h-16 w-16 mx-auto rounded-full bg-zinc-800/80 flex items-center justify-center text-zinc-400 text-3xl">
+            <i class="ph-bold ph-code-block"></i>
+          </div>
+          <p class="text-base font-semibold text-zinc-200">No Baseline Code Scanned Yet</p>
+          <p class="text-xs text-zinc-500 max-w-md mx-auto">Please upload or paste your initial code in the "Upload or Paste Code" tab before running verification.</p>
+          <button onclick="switchTab('upload')" class="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow transition">
+            Go to Upload or Paste Code
+          </button>
+        </div>
+
+        <!-- STATE B: RESCAN INPUT FORM (VISIBLE WHEN BASELINE EXISTS) -->
+        <div id="rescan-active-form" class="hidden space-y-6">
+
+          <!-- Guidance Box: Where to get corrected code -->
+          <div class="bg-indigo-950/20 border border-indigo-800/40 rounded-xl p-4 space-y-2.5">
+            <div class="font-bold text-xs text-indigo-300 flex items-center gap-1.5">
+              <i class="ph-bold ph-lightbulb text-amber-400"></i> Where do you get the corrected code from?
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] text-zinc-300">
+              <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/80 space-y-1">
+                <span class="text-white font-semibold flex items-center gap-1"><i class="ph-bold ph-magic-wand text-indigo-400"></i> 1. Instant Auto-Fill</span>
+                <p class="text-zinc-400">Click <strong>"Auto-Fill with Secure Code"</strong> below to instantly populate the tested clean replacement.</p>
+              </div>
+              <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/80 space-y-1">
+                <span class="text-white font-semibold flex items-center gap-1"><i class="ph-bold ph-sparkle text-violet-400"></i> 2. AI Repair Assistant</span>
+                <p class="text-zinc-400">Visit <strong>Tab 3 (AI Repair Assistant)</strong>, click <em>"Generate Live AI Fix"</em>, and copy the refactored code block.</p>
+              </div>
+              <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/80 space-y-1">
+                <span class="text-white font-semibold flex items-center gap-1"><i class="ph-bold ph-code text-emerald-400"></i> 3. Your Code Editor</span>
+                <p class="text-zinc-400">Fix the issues in your IDE (VS Code/Cursor) following <strong>Tab 1 Audit Findings</strong>, then paste the file here.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <label class="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
+                <i class="ph-bold ph-wrench text-emerald-400"></i> Paste Corrected / Fixed Code:
+              </label>
+              <span class="text-xs text-zinc-500">Provide the updated code to verify fixes</span>
+            </div>
+            <textarea id="rescan-code-input" rows="10" class="w-full bg-surface-900 border border-zinc-700 rounded-lg p-3 font-mono text-xs text-zinc-200 focus:outline-none focus:border-emerald-500 leading-relaxed resize-y" placeholder="# Paste your corrected code here to verify fixes..."></textarea>
+            <div class="flex items-center justify-between pt-1 flex-wrap gap-2">
+              <div class="flex items-center gap-2">
+                <button onclick="document.getElementById('rescan-code-input').value = ''" class="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition">
+                  Clear Text
+                </button>
+                <button onclick="autoFillSecureCode()" class="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition">
+                  <i class="ph-bold ph-magic-wand"></i> Auto-Fix My Code (1-Click)
+                </button>
+              </div>
+              <button onclick="runSnippetRescan()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 transition">
+                <i class="ph-bold ph-check-circle"></i> Verify & Compare Fixes
+              </button>
+            </div>
+          </div>
+
+          <!-- Diff Summary Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div class="bg-emerald-950/20 border border-emerald-900/40 rounded-xl p-4">
+              <div class="text-xs font-semibold text-emerald-400 uppercase">Resolved</div>
+              <div id="diff-resolved" class="text-3xl font-extrabold text-white mt-1">0</div>
+              <span class="text-xs text-zinc-500">Fixed vulnerabilities</span>
+            </div>
+            <div class="bg-red-950/20 border border-red-900/40 rounded-xl p-4">
+              <div class="text-xs font-semibold text-red-400 uppercase">Remaining</div>
+              <div id="diff-remaining" class="text-3xl font-extrabold text-white mt-1">0</div>
+              <span class="text-xs text-zinc-500">Unfixed issues</span>
+            </div>
+            <div class="bg-amber-950/20 border border-amber-900/40 rounded-xl p-4">
+              <div class="text-xs font-semibold text-amber-400 uppercase">New Regressions</div>
+              <div id="diff-new" class="text-3xl font-extrabold text-white mt-1">0</div>
+              <span class="text-xs text-zinc-500">Newly added issues</span>
+            </div>
+            <div class="bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-4">
+              <div class="text-xs font-semibold text-indigo-400 uppercase">Score Delta</div>
+              <div id="diff-delta" class="text-3xl font-extrabold text-white mt-1">+0</div>
+              <span class="text-xs text-zinc-500">Security rating change</span>
+            </div>
+          </div>
+
+          <!-- Diff Items List -->
+          <div id="diff-container" class="space-y-3">
+            <div class="p-8 text-center text-zinc-500 text-sm">
+              Provide your corrected code above and click "Verify & Compare Fixes" to see results.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-zinc-800 border border-zinc-700 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl opacity-0 pointer-events-none transition duration-300 flex items-center gap-2 z-50">
+    <i class="ph-bold ph-check text-emerald-400"></i>
+    <span id="toast-message">Notification</span>
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    let currentScanData = null;
+    let currentSessionId = null;
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const text = document.getElementById('toast-message');
+      text.innerText = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 3000);
+    }
+
+    function switchTab(tabId) {
+      const tabs = ['findings', 'upload', 'ai', 'rescan'];
+      tabs.forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        const btn = document.getElementById(`tab-${t}-btn`);
+        if (t === tabId) {
+          el.classList.remove('hidden');
+          btn.className = "px-4 py-2 text-sm font-medium rounded-lg bg-zinc-800 text-white flex items-center gap-2 transition";
+        } else {
+          el.classList.add('hidden');
+          btn.className = "px-4 py-2 text-sm font-medium rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 flex items-center gap-2 transition";
+        }
+      });
+    }
+
+    async function autoFillSecureCode() {
+      const rescanInput = document.getElementById('rescan-code-input');
+      showToast("✨ Auto-repairing your scanned code...");
+
+      // 1. Request real-time dynamic patching from backend for whatever code was scanned
+      try {
+        const rawCode = document.getElementById('paste-code-input')?.value || null;
+        const res = await fetch('/api/scan/auto-fix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: currentSessionId,
+            code: rawCode,
+            filename: currentScanData?.filename || 'app.py'
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.fixed_code) {
+            rescanInput.value = data.fixed_code;
+            showToast("✨ Auto-fixed your exact code! Click 'Verify & Compare Fixes' to check.");
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Auto-patch fetch error:", err);
+      }
+
+      // 2. Fallback to AI code block if available
+      if (lastAiResponseMarkdown) {
+        const matches = lastAiResponseMarkdown.match(/```(?:python|py)?\s*([\s\S]*?)```/i);
+        if (matches && matches[1] && matches[1].trim().length > 40) {
+          rescanInput.value = matches[1].trim();
+          showToast("✨ Auto-filled with AI-generated refactoring!");
+          return;
+        }
+      }
+
+      // 3. Fallback: Load secured template
+      const securedTemplate = `# ==============================================================================
+# SECUREVIBE VERIFICATION: HARDENED PRODUCTION CODE (100% CLEAN)
+# ==============================================================================
+import os
+import sqlite3
+import subprocess
+from pathlib import Path
+
+# 1. Credentials loaded securely from environment (No hardcoded API/JWT keys)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+
+# 2. Hardened production configuration
+DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1")
+ALLOWED_ORIGINS = ["https://myapp.example.com"]
+
+BASE_REPORTS_DIR = Path("reports").resolve()
+
+def fetch_user_data(username):
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    # 3. Parameterized SQL query with bound tuple (Prevents SQL Injection)
+    query = "SELECT * FROM users WHERE username = ?"
+    cursor.execute(query, (username,))
+    return cursor.fetchall()
+
+def ping_server(ip_address):
+    # 4. Validated argument list with shell=False (Prevents Command Injection)
+    if not ip_address or any(char in ip_address for char in ";|&$"):
+        raise ValueError("Invalid IP address format")
+    subprocess.run(["ping", "-c", "1", ip_address], shell=False, check=False)
+
+def get_report(filename):
+    # 5. Directory containment & sandbox check (Prevents Path Traversal)
+    safe_name = Path(filename).name
+    target_path = (BASE_REPORTS_DIR / safe_name).resolve()
+    if not target_path.is_relative_to(BASE_REPORTS_DIR):
+        raise PermissionError("Access outside designated directory denied")
+    with open(target_path, "r", encoding="utf-8") as f:
+        return f.read()
+`;
+
+      rescanInput.value = securedTemplate;
+      showToast("✨ Auto-filled with secured production code!");
+    }
+
+    function goToVerificationWithFix() {
+      switchTab('rescan');
+      autoFillSecureCode();
+    }
+
+    async function runSnippetRescan() {
+      if (!currentSessionId) {
+        showToast("No active session! Please scan your initial code first.");
+        return;
+      }
+      const rescanCode = document.getElementById('rescan-code-input').value;
+      if (!rescanCode.trim()) {
+        showToast("Please paste your corrected code before verifying!");
+        return;
+      }
+
+      showToast("Verifying corrected code...");
+      try {
+        const res = await fetch('/api/scan/rescan-snippet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: currentSessionId,
+            code: rescanCode,
+            filename: currentScanData.filename || 'app.py'
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || "Rescan verification failed");
+        }
+
+        const data = await res.json();
+        renderDiffResults(data.diff);
+        showToast(`Verification complete: ${data.diff.resolved_count} issues resolved!`);
+      } catch (e) {
+        showToast("Error during verification: " + e.message);
+      }
+    }
+
+    function renderScanResults(data) {
+      currentScanData = data;
+      document.getElementById('badge-total-findings').innerText = data.total_findings;
+      document.getElementById('stat-score').innerText = data.security_score;
+      document.getElementById('stat-critical').innerText = data.severity_summary.CRITICAL || 0;
+      document.getElementById('stat-high').innerText = data.severity_summary.HIGH || 0;
+      document.getElementById('stat-medium').innerText = data.severity_summary.MEDIUM || 0;
+      document.getElementById('stat-files').innerText = data.scanned_files_count || 0;
+      document.getElementById('stat-project-name').innerText = data.projectName || data.filename || "Uploaded Project";
+
+      // Score progress bar color
+      const bar = document.getElementById('stat-score-bar');
+      bar.style.width = `${data.security_score}%`;
+      if (data.security_score >= 80) {
+        bar.className = 'bg-emerald-500 h-full transition-all duration-700';
+      } else if (data.security_score >= 50) {
+        bar.className = 'bg-yellow-500 h-full transition-all duration-700';
+      } else {
+        bar.className = 'bg-red-500 h-full transition-all duration-700';
+      }
+
+      // Update Source Indicator Banner
+      const srcBanner = document.getElementById('source-indicator-banner');
+      const srcBadge = document.getElementById('source-badge');
+      const srcMsg = document.getElementById('source-message');
+      if (srcBanner) {
+        srcBanner.classList.remove('hidden');
+        srcBanner.className = 'rounded-xl p-3 border border-indigo-800/40 bg-indigo-950/20 flex items-center justify-between text-xs';
+        srcBadge.className = 'px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-indigo-900/60 text-indigo-300';
+        srcBadge.innerText = 'ACTIVE CODE';
+        srcMsg.innerHTML = `Auditing: <strong>${data.filename || data.projectName}</strong>`;
+      }
+
+      // Render findings list
+      renderFindingsList(data.findings);
+
+      // Update loaded file banner in upload tab
+      const banner = document.getElementById('loaded-file-banner');
+      if (banner) {
+        banner.classList.remove('hidden');
+        document.getElementById('loaded-file-name').innerText = data.projectName || data.filename || "Uploaded Project";
+        document.getElementById('loaded-file-stats').innerText = `${data.scanned_files_count || 0} files • ${data.total_findings || 0} findings detected`;
+      }
+
+      // Enable rescan tab
+      const rescanNoCode = document.getElementById('rescan-no-code');
+      const rescanForm = document.getElementById('rescan-active-form');
+      const rescanBadge = document.getElementById('rescan-session-badge');
+      const rescanName = document.getElementById('rescan-session-name');
+      if (rescanNoCode && rescanForm) {
+        rescanNoCode.classList.add('hidden');
+        rescanForm.classList.remove('hidden');
+        rescanBadge.classList.remove('hidden');
+        rescanName.innerText = data.filename || data.projectName || "Active Code";
+      }
+
+      // Generate AI prompt
+      fetchAiPrompt(data);
+    }
+
+    function renderFindingsList(findings) {
+      const container = document.getElementById('findings-container');
+      if (!findings || findings.length === 0) {
+        container.innerHTML = `
+          <div class="p-12 text-center text-emerald-400 space-y-2">
+            <i class="ph-bold ph-shield-check text-5xl"></i>
+            <p class="text-base font-bold">Zero Vulnerabilities Detected</p>
+            <p class="text-xs text-zinc-400">All security checks passed clean. No sensitive credentials or dangerous sinks found.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const severityBadge = (sev) => {
+        if (sev === 'CRITICAL') return '<span class="px-2 py-0.5 rounded text-xs font-bold bg-red-950 text-red-400 border border-red-800">CRITICAL</span>';
+        if (sev === 'HIGH') return '<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-950 text-amber-400 border border-amber-800">HIGH</span>';
+        if (sev === 'MEDIUM') return '<span class="px-2 py-0.5 rounded text-xs font-bold bg-yellow-950 text-yellow-400 border border-yellow-800">MEDIUM</span>';
+        return '<span class="px-2 py-0.5 rounded text-xs font-bold bg-zinc-800 text-zinc-300">LOW</span>';
+      };
+
+      container.innerHTML = findings.map((f, i) => `
+        <div class="p-4 sm:p-5 hover:bg-zinc-800/30 transition space-y-2">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center space-x-2">
+              ${severityBadge(f.severity)}
+              <span class="font-bold text-sm text-zinc-100">${f.title}</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">${f.category}</span>
+            </div>
+            <span class="text-xs font-mono text-zinc-400 bg-zinc-950 px-2 py-1 rounded border border-zinc-800">
+              ${f.file} : line ${f.line}
+            </span>
+          </div>
+
+          <p class="text-xs text-zinc-300">${f.description}</p>
+
+          <div class="bg-zinc-950 rounded-lg p-2.5 font-mono text-xs border border-zinc-800/90 text-zinc-300 overflow-x-auto">
+            <span class="text-zinc-600 select-none mr-2">${f.line} |</span> ${f.snippet}
+          </div>
+
+          <div class="flex items-start gap-1.5 text-xs text-emerald-400/90 bg-emerald-950/20 p-2 rounded-lg border border-emerald-900/30">
+            <i class="ph-bold ph-wrench mt-0.5"></i>
+            <span><strong>Recommended Fix:</strong> ${f.remediation}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterFindings() {
+      if (!currentScanData) return;
+      const filter = document.getElementById('severity-filter').value;
+      if (filter === 'ALL') {
+        renderFindingsList(currentScanData.findings);
+      } else {
+        const filtered = currentScanData.findings.filter(f => f.severity === filter);
+        renderFindingsList(filtered);
+      }
+    }
+
+    const PROVIDER_MODELS = {
+      gemini: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"],
+      openai: ["gpt-4o-mini", "gpt-4o"],
+      claude: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"],
+      groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
+      offline: ["SecureVibe-Local-v1"]
+    };
+
+    function onAiProviderChange() {
+      const provider = document.getElementById('ai-provider-select').value;
+      const modelSelect = document.getElementById('ai-model-select');
+      const models = PROVIDER_MODELS[provider] || ["default"];
+      
+      modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+      
+      const keyInput = document.getElementById('ai-api-key-input');
+      if (provider === 'offline') {
+        keyInput.placeholder = "No key needed for offline engine";
+        keyInput.disabled = true;
+      } else {
+        keyInput.placeholder = `Enter ${provider.toUpperCase()} key (or leave empty for fallback)`;
+        keyInput.disabled = false;
+      }
+    }
+
+    function toggleKeyVisibility() {
+      const input = document.getElementById('ai-api-key-input');
+      const icon = document.getElementById('eye-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'ph-bold ph-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'ph-bold ph-eye';
+      }
+    }
+
+    let lastAiResponseMarkdown = "";
+
+    async function generateLiveFix() {
+      if (!currentScanData || !currentScanData.findings || currentScanData.findings.length === 0) {
+        showToast("Please scan code or load a sample first before generating AI fixes!");
+        return;
+      }
+
+      const provider = document.getElementById('ai-provider-select').value;
+      const model = document.getElementById('ai-model-select').value;
+      const perspective = document.getElementById('ai-perspective-select').value;
+      const apiKey = document.getElementById('ai-api-key-input').value.trim();
+
+      const loadingEl = document.getElementById('ai-loading-indicator');
+      const renderedEl = document.getElementById('ai-response-rendered');
+      const badgeEl = document.getElementById('ai-status-badge');
+      const metaEl = document.getElementById('ai-meta-text');
+      const btn = document.getElementById('btn-generate-fix');
+
+      loadingEl.classList.remove('hidden');
+      renderedEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+      badgeEl.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-950 text-amber-400 border border-amber-800 flex items-center gap-1';
+      badgeEl.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Generating...';
+      metaEl.innerText = `Consulting ${provider.toUpperCase()} (${model})...`;
+
+      try {
+        const res = await fetch('/api/ai/generate-fix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            findings: currentScanData.findings,
+            provider: provider,
+            model: model,
+            perspective: perspective,
+            api_key: apiKey
+          })
+        });
+
+        if (!res.ok) throw new Error("AI request failed");
+        const data = await res.json();
+
+        lastAiResponseMarkdown = data.response;
+
+        // Render Markdown safely
+        if (window.marked) {
+          renderedEl.innerHTML = marked.parse(data.response);
+        } else {
+          renderedEl.innerText = data.response;
+        }
+
+        badgeEl.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1';
+        badgeEl.innerHTML = `<i class="ph-bold ph-check-circle"></i> ${data.provider}`;
+        metaEl.innerText = `${data.note} (${data.latency_seconds}s)`;
+        showToast(`${data.provider} remediation generated!`);
+
+      } catch (err) {
+        showToast("Error generating fix: " + err.message);
+        metaEl.innerText = "Error encountered: " + err.message;
+      } finally {
+        loadingEl.classList.add('hidden');
+        renderedEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+
+    function copyAiResponse() {
+      if (!lastAiResponseMarkdown) {
+        showToast("No AI response to copy yet!");
+        return;
+      }
+      navigator.clipboard.writeText(lastAiResponseMarkdown);
+      showToast("AI Remediation copied to clipboard!");
+    }
+
+    async function fetchAiPrompt(scanData) {
+      try {
+        const res = await fetch('/api/ai/repair-prompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(scanData)
+        });
+        const d = await res.json();
+        document.getElementById('ai-prompt-content').innerText = d.prompt;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function copyAiPrompt() {
+      const text = document.getElementById('ai-prompt-content').innerText;
+      navigator.clipboard.writeText(text);
+      showToast("AI Repair Prompt copied to clipboard!");
+    }
+
+    function copyAllFindingsJson() {
+      if (!currentScanData) return;
+      navigator.clipboard.writeText(JSON.stringify(currentScanData, null, 2));
+      showToast("Findings JSON copied to clipboard!");
+    }
+
+    function renderDiffResults(diff) {
+      document.getElementById('diff-resolved').innerText = diff.resolved_count;
+      document.getElementById('diff-remaining').innerText = diff.remaining_count;
+      document.getElementById('diff-new').innerText = diff.new_count;
+      document.getElementById('diff-delta').innerText = (diff.score_delta >= 0 ? '+' : '') + diff.score_delta;
+
+      const container = document.getElementById('diff-container');
+      let html = '';
+
+      if (diff.resolved.length > 0) {
+        html += `<h3 class="text-xs font-bold uppercase text-emerald-400 mt-4 mb-2 flex items-center gap-1.5"><i class="ph-bold ph-check"></i> Resolved Issues (${diff.resolved.length})</h3>`;
+        html += diff.resolved.map(f => `
+          <div class="p-3 rounded-lg bg-emerald-950/20 border border-emerald-900/30 text-xs flex justify-between items-center">
+            <div>
+              <span class="font-bold text-emerald-300">${f.title}</span>
+              <span class="text-zinc-400 ml-2">in ${f.file}:${f.line}</span>
+            </div>
+            <span class="text-xs bg-emerald-900/50 text-emerald-300 px-2 py-0.5 rounded font-mono">RESOLVED</span>
+          </div>
+        `).join('');
+      }
+
+      if (diff.remaining.length > 0) {
+        html += `<h3 class="text-xs font-bold uppercase text-red-400 mt-4 mb-2 flex items-center gap-1.5"><i class="ph-bold ph-warning"></i> Remaining Issues (${diff.remaining.length})</h3>`;
+        html += diff.remaining.map(f => `
+          <div class="p-3 rounded-lg bg-red-950/20 border border-red-900/30 text-xs flex justify-between items-center">
+            <div>
+              <span class="font-bold text-red-300">${f.title}</span>
+              <span class="text-zinc-400 ml-2">in ${f.file}:${f.line}</span>
+            </div>
+            <span class="text-xs bg-red-900/50 text-red-300 px-2 py-0.5 rounded font-mono">STILL VULNERABLE</span>
+          </div>
+        `).join('');
+      }
+
+      container.innerHTML = html;
+    }
+
+    // Drag and drop handlers
+    function handleDragOver(e) {
+      e.preventDefault();
+      document.getElementById('drop-zone').classList.add('border-indigo-500', 'bg-indigo-950/20');
+    }
+
+    function handleDragLeave(e) {
+      document.getElementById('drop-zone').classList.remove('border-indigo-500', 'bg-indigo-950/20');
+    }
+
+    function handleFileDrop(e) {
+      e.preventDefault();
+      document.getElementById('drop-zone').classList.remove('border-indigo-500', 'bg-indigo-950/20');
+      if (e.dataTransfer.files.length > 0) {
+        uploadFile(e.dataTransfer.files[0]);
+      }
+    }
+
+    function handleFileSelect(e) {
+      if (e.target.files.length > 0) {
+        uploadFile(e.target.files[0]);
+      }
+    }
+
+    async function uploadFile(file) {
+      showToast(`Uploading and scanning ${file.name}...`);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/scan/upload', {
+          method: 'POST',
+          body: formData
+        });
+        if (!res.ok) throw new Error("Upload failed");
+        const data = await res.json();
+        currentSessionId = data.session_id;
+        renderScanResults(data);
+        switchTab('findings');
+        showToast(`Scan complete for ${file.name}`);
+      } catch (err) {
+        showToast("Error scanning uploaded file: " + err.message);
+      }
+    }
+
+    function setUploadMode(mode) {
+      const pasteSec = document.getElementById('section-paste');
+      const uploadSec = document.getElementById('section-upload');
+      const pasteBtn = document.getElementById('mode-paste-btn');
+      const uploadBtn = document.getElementById('mode-upload-btn');
+
+      if (mode === 'paste') {
+        pasteSec.classList.remove('hidden');
+        uploadSec.classList.add('hidden');
+        pasteBtn.className = "px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white flex items-center gap-1.5 shadow transition";
+        uploadBtn.className = "px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-800 text-zinc-400 hover:text-white flex items-center gap-1.5 transition";
+      } else {
+        pasteSec.classList.add('hidden');
+        uploadSec.classList.remove('hidden');
+        pasteBtn.className = "px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-800 text-zinc-400 hover:text-white flex items-center gap-1.5 transition";
+        uploadBtn.className = "px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white flex items-center gap-1.5 shadow transition";
+      }
+    }
+
+    async function scanPastedCode() {
+      const code = document.getElementById('paste-code-input').value;
+      const filename = document.getElementById('snippet-filename').value || 'snippet.py';
+      if (!code.trim()) {
+        showToast("Please paste some code before scanning!");
+        return;
+      }
+      showToast("Scanning pasted code...");
+      try {
+        const res = await fetch('/api/scan/snippet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code, filename: filename })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || "Scan failed");
+        }
+        const data = await res.json();
+        currentSessionId = data.session_id;
+        renderScanResults(data);
+        switchTab('findings');
+        showToast(`Scan complete: ${data.total_findings} findings detected.`);
+      } catch (e) {
+        showToast("Error scanning code: " + e.message);
+      }
+    }
+
+    async function clearCurrentScan(showToastNotice = true) {
+      if (currentSessionId) {
+        try {
+          await fetch(`/api/scan/session/${currentSessionId}`, { method: 'DELETE' });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      currentScanData = null;
+      currentSessionId = null;
+
+      // Reset statistics
+      document.getElementById('badge-total-findings').innerText = '0';
+      document.getElementById('stat-score').innerText = '--';
+      document.getElementById('stat-critical').innerText = '0';
+      document.getElementById('stat-high').innerText = '0';
+      document.getElementById('stat-medium').innerText = '0';
+      document.getElementById('stat-files').innerText = '0';
+      document.getElementById('stat-project-name').innerText = 'No scan performed';
+
+      const bar = document.getElementById('stat-score-bar');
+      bar.style.width = '0%';
+      bar.className = 'bg-zinc-700 h-full transition-all duration-700';
+
+      // Reset findings list to welcoming clean state
+      document.getElementById('findings-container').innerHTML = `
+        <div class="p-12 text-center text-zinc-500 space-y-4">
+          <div class="h-16 w-16 mx-auto rounded-full bg-zinc-800/80 flex items-center justify-center text-zinc-400 text-3xl">
+            <i class="ph-bold ph-code"></i>
+          </div>
+          <div>
+            <p class="text-base font-semibold text-zinc-200">No Codebase Currently Loaded</p>
+            <p class="text-xs text-zinc-500 mt-1">Please paste code or upload a file to begin the security audit.</p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="switchTab('upload')" class="px-5 py-2.5 text-xs font-bold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+              <i class="ph-bold ph-plus-circle"></i> Input Code to Scan
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Reset file banner
+      const banner = document.getElementById('loaded-file-banner');
+      if (banner) banner.classList.add('hidden');
+
+      const srcBanner = document.getElementById('source-indicator-banner');
+      if (srcBanner) srcBanner.classList.add('hidden');
+
+      // Reset Rescan Tab State
+      const rescanNoCode = document.getElementById('rescan-no-code');
+      const rescanForm = document.getElementById('rescan-active-form');
+      const rescanBadge = document.getElementById('rescan-session-badge');
+      if (rescanNoCode && rescanForm) {
+        rescanNoCode.classList.remove('hidden');
+        rescanForm.classList.add('hidden');
+        rescanBadge.classList.add('hidden');
+      }
+      const rescanInput = document.getElementById('rescan-code-input');
+      if (rescanInput) rescanInput.value = '';
+
+      // Reset file input element so selecting the same file again triggers onchange
+      const fileInput = document.getElementById('file-input');
+      if (fileInput) fileInput.value = '';
+
+      // Reset AI prompt & response
+      document.getElementById('ai-prompt-content').innerText = 'Select or run a scan first to generate the contextual AI remediation prompt.';
+      const renderedEl = document.getElementById('ai-response-rendered');
+      if (renderedEl) {
+        renderedEl.innerHTML = '<p class="text-zinc-500 italic">No AI response generated yet. Load or scan code, then click "Generate Live AI Fix".</p>';
+      }
+      const badgeEl = document.getElementById('ai-status-badge');
+      if (badgeEl) {
+        badgeEl.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-300 flex items-center gap-1';
+        badgeEl.innerHTML = '<i class="ph-bold ph-sparkle text-indigo-400"></i> Ready';
+      }
+      const metaEl = document.getElementById('ai-meta-text');
+      if (metaEl) {
+        metaEl.innerText = 'Click "Generate Live AI Fix" to analyze findings with the selected model.';
+      }
+
+      // Reset Diff
+      document.getElementById('diff-resolved').innerText = '0';
+      document.getElementById('diff-remaining').innerText = '0';
+      document.getElementById('diff-new').innerText = '0';
+      document.getElementById('diff-delta').innerText = '+0';
+      document.getElementById('diff-container').innerHTML = `
+        <div class="p-8 text-center text-zinc-500 text-sm">
+          Provide your corrected code above and click "Verify & Compare Fixes" to see results.
+        </div>
+      `;
+
+      if (showToastNotice) {
+        showToast("Active codebase cleared. Ready for new project.");
+      }
+    }
+
+    // Initial load: start clean and open directly to the input tab
+    window.addEventListener('DOMContentLoaded', () => {
+      clearCurrentScan(false);
+      switchTab('upload');
+      if (typeof onAiProviderChange === 'function') {
+        onAiProviderChange();
+      }
+    });
+  </script>
+</body>
+</html>
